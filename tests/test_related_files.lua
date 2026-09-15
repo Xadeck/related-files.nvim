@@ -123,6 +123,30 @@ test('Supports dictionary format with related_files_order', function()
   assert_eq(keys, { 'h', 'test', 'build', 'cc' })
 end)
 
+test('Notifies error when snacks.nvim is missing in pick()', function()
+  local notified_msg = nil
+  local notified_level = nil
+  local orig_notify = vim.notify
+  vim.notify = function(msg, level)
+    notified_msg = msg
+    notified_level = level
+  end
+
+  local orig_snacks = _G.Snacks
+  local orig_loaded = package.loaded['snacks']
+  _G.Snacks = nil
+  package.loaded['snacks'] = nil
+
+  related_files.pick()
+
+  _G.Snacks = orig_snacks
+  package.loaded['snacks'] = orig_loaded
+  vim.notify = orig_notify
+
+  assert_eq(notified_level, vim.log.levels.ERROR)
+  assert_eq(notified_msg, 'snacks.nvim is required for related-files.nvim')
+end)
+
 print(string.format('\nResults: %d/%d passed, %d failed\n', passed_tests, total_tests, failed_tests))
 if failed_tests > 0 then
   vim.cmd 'cquit 1'

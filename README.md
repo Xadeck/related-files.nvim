@@ -2,6 +2,13 @@
 
 A lightweight Neovim plugin that opens a picker for files related to the current buffer (such as `.cc`, `.h`, `_test.cc`, and `BUILD`), sorted by alternate buffer (`#`), recent visit history, and filetype-defined order.
 
+## Requirements
+
+- Neovim >= 0.10
+- [folke/snacks.nvim](https://github.com/folke/snacks.nvim) (specifically `Snacks.picker`)
+
+If `snacks.nvim` is not installed or loaded, calling `require('related-files').pick()` (or `:RelatedFiles`) will emit an error notification (`vim.log.levels.ERROR`).
+
 ## Usage
 
 In any `after/ftplugin/<filetype>.lua` (or autocommand), set `vim.b.related_files` on the buffer:
