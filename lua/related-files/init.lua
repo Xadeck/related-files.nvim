@@ -80,20 +80,11 @@ function M.get_sorted(bufnr)
   return list
 end
 
---- Open the related files picker for the current buffer.
-function M.pick()
-  local ok, snacks = pcall(require, 'snacks')
-  snacks = (ok and snacks) or _G.Snacks
-  if not snacks or not snacks.picker then
-    vim.notify('snacks.nvim is required for related-files.nvim', vim.log.levels.ERROR)
-    return
-  end
-
+--- Snacks picker finder for related files of the current buffer.
+---@return table[]
+function M.finder()
   local list = M.get_sorted(0)
-  if #list == 0 then
-    vim.notify('No related files found for current buffer', vim.log.levels.WARN)
-    return
-  end
+  if #list == 0 then return {} end
 
   M.record_visit(0)
 
@@ -110,10 +101,23 @@ function M.pick()
     })
   end
 
-  snacks.picker.pick {
+  return items
+end
+
+--- Inject `Snacks.picker.related_files` into snacks.nvim.
+function M.setup()
+  local ok, snacks = pcall(require, 'snacks')
+  snacks = (ok and snacks) or _G.Snacks
+  local ok_sources, sources = pcall(require, 'snacks.picker.config.sources')
+  if not snacks or not snacks.picker or not ok_sources or not sources then
+    vim.notify('snacks.nvim is required for related-files.nvim', vim.log.levels.ERROR)
+    return
+  end
+
+  sources.related_files = {
     title = 'Related Files',
-    items = items,
     layout = { preset = 'dropdown', preview = false },
+    finder = function() return M.finder() end,
     confirm = function(picker, item)
       picker:close()
       if item and item.file then
@@ -122,6 +126,14 @@ function M.pick()
       end
     end,
   }
+
+  snacks.picker.related_files = function(opts)
+    if #M.get_sorted(0) == 0 then
+      vim.notify('No related files found for current buffer', vim.log.levels.WARN)
+      return
+    end
+    return snacks.picker.pick('related_files', opts)
+  end
 end
 
 return M

@@ -41,6 +41,12 @@ end
 
 print '\nRunning related-files.nvim test suite...'
 
+test('Does not expose direct pick() function', function()
+  assert_eq(related_files.pick, nil)
+  assert_eq(type(related_files.setup), 'function')
+  assert_eq(type(related_files.finder), 'function')
+end)
+
 test('Returns empty list when vim.b.related_files is unset', function()
   related_files.clear_history()
   vim.cmd 'enew!'
@@ -61,7 +67,6 @@ test('Sorts list format by default order with current file last', function()
 
   local sorted = related_files.get_sorted(0)
   local keys = vim.tbl_map(function(x) return x.key end, sorted)
-  -- Current file ('cc') is placed at the bottom; others follow their list order
   assert_eq(keys, { 'h', 'test', 'build', 'cc' })
 end)
 
@@ -102,7 +107,6 @@ test('Prioritizes recently visited files over unvisited files', function()
 
   local sorted = related_files.get_sorted(0)
   local keys = vim.tbl_map(function(x) return x.key end, sorted)
-  -- test is alternate buffer (#), build was visited before test, h was never visited, cc is current
   assert_eq(keys, { 'test', 'build', 'h', 'cc' })
 end)
 
@@ -123,7 +127,7 @@ test('Supports dictionary format with related_files_order', function()
   assert_eq(keys, { 'h', 'test', 'build', 'cc' })
 end)
 
-test('Notifies error when snacks.nvim is missing in pick()', function()
+test('Notifies error when snacks.nvim is missing in setup()', function()
   local notified_msg = nil
   local notified_level = nil
   local orig_notify = vim.notify
@@ -134,17 +138,45 @@ test('Notifies error when snacks.nvim is missing in pick()', function()
 
   local orig_snacks = _G.Snacks
   local orig_loaded = package.loaded['snacks']
+  local orig_sources = package.loaded['snacks.picker.config.sources']
   _G.Snacks = nil
   package.loaded['snacks'] = nil
+  package.loaded['snacks.picker.config.sources'] = nil
 
-  related_files.pick()
+  related_files.setup()
 
   _G.Snacks = orig_snacks
-  package.loaded['snacks'] = orig_loaded
+  package.loaded['snacks'] = orig_snacks
+  package.loaded['snacks.picker.config.sources'] = orig_sources
   vim.notify = orig_notify
 
   assert_eq(notified_level, vim.log.levels.ERROR)
   assert_eq(notified_msg, 'snacks.nvim is required for related-files.nvim')
+end)
+
+test('Injects Snacks.picker.related_files on setup()', function()
+  local fake_sources = {}
+  local picked_source = nil
+  local fake_snacks = {
+    picker = {
+      pick = function(source) picked_source = source end,
+    },
+  }
+  package.loaded['snacks'] = fake_snacks
+  package.loaded['snacks.picker.config.sources'] = fake_sources
+  _G.Snacks = fake_snacks
+
+  related_files.setup()
+  assert_eq(type(fake_sources.related_files), 'table')
+  assert_eq(type(fake_snacks.picker.related_files), 'function')
+
+  vim.cmd 'edit! /tmp/foo.cc'
+  vim.b.related_files = {
+    { key = 'cc', file = '/tmp/foo.cc' },
+    { key = 'h', file = '/tmp/foo.h' },
+  }
+  fake_snacks.picker.related_files()
+  assert_eq(picked_source, 'related_files')
 end)
 
 print(string.format('\nResults: %d/%d passed, %d failed\n', passed_tests, total_tests, failed_tests))
