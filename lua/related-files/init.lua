@@ -1,3 +1,6 @@
+---@class snacks.picker
+---@field related_files fun(opts?: snacks.picker.Config|{}): snacks.Picker?
+
 local M = {}
 
 local history = {}
